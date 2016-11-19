@@ -128,6 +128,11 @@
         "description": "Check the main library of the project for warnings and errors"
       },
       {
+        "command": "rust.cargo.clippy",
+        "title": "Cargo: Clippy",
+        "description": "Check project with clippy."
+      },
+      {
         "command": "rust.cargo.terminate",
         "title": "Cargo: Terminate Running Task",
         "description": "Terminate currently running cargo task"
