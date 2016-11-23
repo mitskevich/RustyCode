@@ -42,11 +42,9 @@ fn main() {
         }
     "#;
 
-    let program = glium::Program::from_source(&display,
-                                              vertex_shader_src,
-                                              fragment_shader_src,
-                                              None)
-                      .unwrap();
+    let program =
+        glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None)
+            .unwrap();
 
     let mut t: f32 = -0.5;
 
@@ -70,11 +68,11 @@ fn main() {
         };
 
         target.draw(&vertex_buffer,
-                    &indices,
-                    &program,
-                    &uniforms,
-                    &Default::default())
-              .unwrap();
+                  &indices,
+                  &program,
+                  &uniforms,
+                  &Default::default())
+            .unwrap();
         target.finish().unwrap();
 
         for ev in display.poll_events() {
