@@ -25,9 +25,11 @@ export enum ErrorFormat {
 class ChannelWrapper {
     private owner: CargoTask;
     private channel: vscode.OutputChannel;
+    private isVisible: boolean;
 
     constructor(channel: vscode.OutputChannel) {
         this.channel = channel;
+        this.isVisible = false;
     }
 
     public append(task: CargoTask, message: string): void {
@@ -44,6 +46,20 @@ class ChannelWrapper {
 
     public show(): void {
         this.channel.show(true);
+        this.isVisible = true;
+    }
+
+    public hide(): void {
+        this.channel.hide();
+        this.isVisible = false;
+    }
+
+    public toggle(): void {
+        if (this.isVisible) {
+            this.hide();
+        } else {
+            this.show();
+        }
     }
 
     public setOwner(owner: CargoTask): void {
@@ -195,6 +211,12 @@ export class CommandService {
             if (this.currentTask) {
                 this.currentTask.kill();
             }
+        });
+    }
+
+    public static toggleChannel(commandName: string): vscode.Disposable {
+        return vscode.commands.registerCommand(commandName, () => {
+            this.channel.toggle();
         });
     }
 

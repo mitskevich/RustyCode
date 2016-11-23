@@ -159,4 +159,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
     // Cargo terminate
     ctx.subscriptions.push(CommandService.stopCommand('rust.cargo.terminate'));
+
+    // Toggle output panel
+    ctx.subscriptions.push(CommandService.toggleChannel('rust.cargo.output.toggle'));
 }

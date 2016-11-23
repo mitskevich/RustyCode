@@ -131,6 +131,11 @@
         "command": "rust.cargo.terminate",
         "title": "Cargo: Terminate Running Task",
         "description": "Terminate currently running cargo task"
+      },
+      {
+        "command": "rust.cargo.output.toggle",
+        "title": "Cargo: Toggle Output",
+        "description": "Show/hide output panel"
       }
     ],
     "configuration": {
