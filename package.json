@@ -194,8 +194,8 @@
         },
         "rust.errorMode": {
           "type": "string",
-          "default": "plain-text-new",
-          "description": "Modifies error-specific command line arguments and environment variables for cargo checker/builder commands. Possible values: 'json-cargo' (cargo --message-format=json - best option if you use nightly >= 2016-10-10), 'json-rustc' (RUSTFLAGS=--error-format=json), 'plain-text-new' (rust 1.12.0 and later), 'plain-text-new' (pre rust 1.12.0)."
+          "default": "auto",
+          "description": "Modifies error-specific command line arguments and environment variables for cargo checker/builder commands. Possible values: 'auto' (try determine automatically), 'json-cargo' (cargo --message-format=json - best option if you use nightly >= 2016-10-10), 'json-rustc' (RUSTFLAGS=--error-format=json), 'plain-text-new' (rust 1.12.0 and later), 'plain-text-new' (pre rust 1.12.0)."
         }
       }
     },

@@ -51,7 +51,7 @@ The following Visual Studio Code settings are available for the RustyCode extens
 	"rust.formatOnSave": false, // Turn on/off autoformatting file on save (EXPERIMENTAL)
 	"rust.checkOnSave": false, // Turn on/off `cargo check` project on save (EXPERIMENTAL)
 	"rust.checkWith": "build", // Specifies the linter to use. (EXPERIMENTAL)
-	"rust.errorMode": "plain-text-new", // Error mode, see below.
+	"rust.errorMode": "auto", // Error mode, see below.
 }
 ```
 
@@ -74,6 +74,10 @@ The following Visual Studio Code settings are available for the RustyCode extens
 - `plain-text-old`
 
   Pre __1.12.0__ error message output format.
+
+- `auto`
+
+  Attempt to determine correct mode automatically, depending on the version of `rustc` that is in current env's PATH.
 
 ## Building and Debugging the Extension
 

@@ -225,9 +225,60 @@ export default class CommandService {
             this.jsonArgTo = JSONArgTo.Rustc;
         } else if (conf === 'plain-text-old') {
             this.errorFormat = ErrorFormat.OldStyle;
-        } else {
+        } else if (conf === 'plain-text-new') {
             this.errorFormat = ErrorFormat.NewStyle;
+        } else {
+            this.autoDetermineErrorMode().then(([errorFormat, jsonArgTo]) => {
+                this.errorFormat = errorFormat;
+                this.jsonArgTo = jsonArgTo;
+            });
         }
+    }
+
+    public static autoDetermineErrorMode(): Thenable<[ErrorFormat, JSONArgTo]> {
+        return new Promise((resolve) => {
+            let format = ErrorFormat.NewStyle;
+            let jsonArgTo = JSONArgTo.Rustc;
+
+            // TODO: get rustc from pathService or replace with cargo.
+            const rustcPath = 'rustc';
+            const procHandler = cp.spawn(rustcPath, ['--version'], { env: process.env });
+            let output = '';
+            procHandler.stdout.on('data', data => { output += data; });
+            procHandler.on('error', () => {
+                resolve([format, jsonArgTo]);
+            });
+            procHandler.on('exit', () => {
+                if (!output) {
+                    resolve([format, jsonArgTo]);
+                    return;
+                }
+
+                try {
+                    /* tslint:disable:max-line-length */
+                    const versionRe = /rustc (?:(\d+).(\d+).\d+)(?:(?:-(?:(nightly)|(beta.*?))|(?:[^\s]+))? \((?:[^\s]+) (\d{4}-\d{2}-\d{2})\))?/;
+                    const matches = output.match(versionRe);
+                    if (!matches) {
+                        resolve([format, jsonArgTo]);
+                        return;
+                    }
+                    const versionMajor = Number(matches[1]);
+                    const versionMinor = Number(matches[2]);
+                    const isNightly = matches[3] === 'nightly';
+                    const date = Date.parse(matches[5]);
+
+                    if (isNightly && date >= Date.parse('2016-10-10')) {
+                        [format, jsonArgTo] = [ErrorFormat.JSON, JSONArgTo.Cargo];
+                    } else if (isNightly && date >= Date.parse('2016-08-08') || versionMajor >= 1 && versionMinor >= 12) {
+                        [format, jsonArgTo] = [ErrorFormat.NewStyle, JSONArgTo.Rustc];
+                    } else {
+                        [format, jsonArgTo] = [ErrorFormat.OldStyle, JSONArgTo.Rustc];
+                    }
+                } finally {
+                    resolve([format, jsonArgTo]);
+                }
+            });
+        });
     }
 
     private static determineExampleName(): string {

@@ -89,7 +89,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     // This should run both on activation and when the config changes to ensure we stay in sync with their preference.
     const checkErrorModeConfiguration = () => {
         const config = vscode.workspace.getConfiguration('rust');
-        const acceptedErrorModes = ['json-cargo', 'json-rustc', 'plain-text-new', 'plain-text-old'];
+        const acceptedErrorModes = ['auto', 'json-cargo', 'json-rustc', 'plain-text-new', 'plain-text-old'];
         if (acceptedErrorModes.indexOf(config['errorMode']) === -1) {
             let ignoreOption = <vscode.MessageItem>{ title: 'Use plain-text-new' };
             let updateSettingsOption = <vscode.MessageItem>{ title: 'Update Settings' };
@@ -104,7 +104,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
                 });
         }
         // Update error format indpendently of the fact if the current setting is correct.
-        // In case of incorrect setting, default (new plain text format) will be used.
+        // In case of incorrect setting, default (attempt to determine automatically falling back to new plain text format) will be used.
         CommandService.updateErrorFormat();
     };
 
