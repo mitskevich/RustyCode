@@ -302,7 +302,7 @@ export class CommandService {
         });
 
         diagnosticMap.forEach((diags, uri) => {
-            this.diagnostics.set(vscode.Uri.file(uri), diags);
+            this.diagnostics.set(vscode.Uri.file(uri), distinctDiagnostics(diags));
         });
     }
 
@@ -455,4 +455,14 @@ export class CommandService {
             }
         });
     }
+}
+
+function distinctDiagnostics(diags: vscode.Diagnostic[]): vscode.Diagnostic[] {
+    let map: Map<string, vscode.Diagnostic> = new Map();
+    for (const diag of diags) {
+        const key = `${diag.range.start.line}:${diag.range.start.character}:` +
+            `${diag.range.end.line}:${diag.range.end.character}:${diag.message}`;
+        map.set(key, diag);
+    }
+    return Array.from(map.values());
 }
