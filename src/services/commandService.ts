@@ -16,10 +16,15 @@ interface RustError {
     message: string;
 }
 
-export enum ErrorFormat {
+enum ErrorFormat {
     OldStyle,
     NewStyle,
     JSON
+}
+
+enum JSONArgTo {
+    Cargo,
+    Rustc,
 }
 
 class ChannelWrapper {
@@ -67,13 +72,10 @@ class CargoTask {
         return new Promise((resolve, reject) => {
             const cargoPath = PathService.getCargoPath();
             const startTime = Date.now();
-            const task = 'cargo ' + this.arguments.join(' ');
             const errorFormat = CommandService.errorFormat;
-
-            let output = '';
+            const jsonArgTo = CommandService.jsonArgTo;
 
             this.channel.clear(this);
-            this.channel.append(this, `Running "${task}":\n`);
 
             let newEnv = Object.assign({}, process.env);
 
@@ -83,26 +85,40 @@ class CargoTask {
             }
 
             if (errorFormat === ErrorFormat.JSON) {
-                newEnv['RUSTFLAGS'] = '-Zunstable-options --error-format=json';
+                if (jsonArgTo === JSONArgTo.Cargo) {
+                    this.arguments = appendCargoArgs(this.arguments, '--message-format=json');
+                } else {
+                    newEnv['RUSTFLAGS'] = '-Zunstable-options --error-format=json';
+                }
             } else if (errorFormat === ErrorFormat.NewStyle) {
                 newEnv['RUST_NEW_ERROR_FORMAT'] = 'true';
             }
 
+            const task = 'cargo ' + this.arguments.join(' ');
+            this.channel.append(this, `Running "${task}":\n`);
+
             this.process = cp.spawn(cargoPath, this.arguments, { cwd, env: newEnv });
 
-            this.process.stdout.on('data', data => {
-                this.channel.append(this, data.toString());
-            });
-            this.process.stderr.on('data', data => {
-                output += data.toString();
+            let output = '';
+            const outStream = (errorFormat === ErrorFormat.JSON && jsonArgTo === JSONArgTo.Cargo) ? 'stdout' : 'stderr';
+            const getOutputProcessor = useOutput => {
+                return data => {
+                    const str: string = data.toString();
+                    if (useOutput) {
+                        output += str;
+                    }
 
-                // If the user has selected JSON errors, we defer the output to process exit
-                // to allow us to parse the errors into something human readable.
-                // Otherwise we just emit the output as-is.
-                if (errorFormat !== ErrorFormat.JSON) {
-                    this.channel.append(this, data.toString());
-                }
-            });
+                    // If the user has selected JSON errors, we defer the output to process exit
+                    // to allow us to parse the errors into something human readable.
+                    // Otherwise we just emit the output as-is.
+                    if (errorFormat !== ErrorFormat.JSON || !str.startsWith('{')) {
+                        this.channel.append(this, str);
+                    }
+                };
+            };
+
+            this.process.stdout.on('data', getOutputProcessor(outStream === 'stdout'));
+            this.process.stderr.on('data', getOutputProcessor(outStream === 'stderr'));
             this.process.on('error', error => {
                 if (error.code === 'ENOENT') {
                     vscode.window.showInformationMessage('The "cargo" command is not available. Make sure it is installed.');
@@ -119,7 +135,7 @@ class CargoTask {
                         // Catch any JSON lines
                         if (line.startsWith('{')) {
                             let errors: RustError[] = [];
-                            if (CommandService.parseJsonLine(errors, line)) {
+                            if (CommandService.parseJsonLine(errors, line, jsonArgTo === JSONArgTo.Cargo)) {
                                 /* tslint:disable:max-line-length */
                                 // Print any errors as best we can match to Rust's format.
                                 // TODO: Add support for child errors/text highlights.
@@ -166,11 +182,12 @@ class CargoTask {
     }
 }
 
-export class CommandService {
+export default class CommandService {
     private static diagnostics: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('rust');
     private static channel: ChannelWrapper = new ChannelWrapper(vscode.window.createOutputChannel('Cargo'));
     private static currentTask: CargoTask;
-    public static errorFormat: ErrorFormat;
+    public static errorFormat: ErrorFormat = ErrorFormat.NewStyle;
+    public static jsonArgTo: JSONArgTo = JSONArgTo.Rustc;
 
     public static formatCommand(commandName: string, ...args: string[]): vscode.Disposable {
         return vscode.commands.registerCommand(commandName, () => {
@@ -199,13 +216,17 @@ export class CommandService {
     }
 
     public static updateErrorFormat(): void {
-        const config = vscode.workspace.getConfiguration('rust');
-        if (config['useJsonErrors'] === true) {
+        const conf = vscode.workspace.getConfiguration('rust')['errorMode'];
+        if (conf === 'json-cargo') {
             this.errorFormat = ErrorFormat.JSON;
-        } else if (config['useNewErrorFormat'] === true) {
-            this.errorFormat = ErrorFormat.NewStyle;
-        } else {
+            this.jsonArgTo = JSONArgTo.Cargo;
+        } else if (conf === 'json-rustc') {
+            this.errorFormat = ErrorFormat.JSON;
+            this.jsonArgTo = JSONArgTo.Rustc;
+        } else if (conf === 'plain-text-old') {
             this.errorFormat = ErrorFormat.OldStyle;
+        } else {
+            this.errorFormat = ErrorFormat.NewStyle;
         }
     }
 
@@ -261,7 +282,7 @@ export class CommandService {
             // Otherwise, parse out the errors line by line.
             for (let line of output.split('\n')) {
                 if (this.errorFormat === ErrorFormat.JSON && line.startsWith('{')) {
-                    this.parseJsonLine(errors, line);
+                    this.parseJsonLine(errors, line, this.jsonArgTo === JSONArgTo.Cargo);
                 } else {
                     this.parseOldHumanReadable(errors, line);
                 }
@@ -372,14 +393,21 @@ export class CommandService {
         }
     };
 
-    public static parseJsonLine(errors: RustError[], line: string): boolean {
+    public static parseJsonLine(errors: RustError[], line: string, fromCargo: boolean): boolean {
         let errorJson = JSON.parse(line);
-        return this.parseJson(errors, errorJson);
+        return this.parseJson(errors, errorJson, fromCargo);
     }
 
-    private static parseJson(errors: RustError[], errorJson: any): boolean {
+    private static parseJson(errors: RustError[], errorJson: any, fromCargo: boolean): boolean {
+        if (fromCargo) {
+            if (errorJson.reason !== 'compiler-message') {
+                return false;
+            }
+            errorJson = errorJson.message;
+        }
+
         let spans = errorJson.spans;
-        if (spans.length === 0) {
+        if (!spans || spans.length === 0) {
             return false;
         }
 
@@ -425,16 +453,9 @@ export class CommandService {
 
         // replace args with new instance containing feature flags, features
         // must be placed before doubledash `--`
-        let doubledash = args.indexOf('--');
-        let argsWithFatures: string[];
-        if (doubledash >= 0) {
-            argsWithFatures = args.concat();
-            argsWithFatures.splice.apply(argsWithFatures, [doubledash, 0].concat(features));
-        } else {
-            argsWithFatures = args.concat(features);
-        }
+        let argsWithFeatures = appendCargoArgs(args, ...features);
 
-        this.currentTask = new CargoTask(argsWithFatures, this.channel);
+        this.currentTask = new CargoTask(argsWithFeatures, this.channel);
 
         if (visible) {
             this.channel.setOwner(this.currentTask);
@@ -456,3 +477,15 @@ export class CommandService {
         });
     }
 }
+
+function appendCargoArgs(args: string[], ...newArgs: string[]): string[] {
+    if (newArgs.length === 0) { return args; }
+    let doubledashPos = args.indexOf('--');
+    if (doubledashPos >= 0) {
+        let result = args.concat();
+        let afterDoubledashArgs = result.splice(doubledashPos);
+        return result.concat(newArgs).concat(afterDoubledashArgs);
+    }
+    return args.concat(newArgs);
+}
+

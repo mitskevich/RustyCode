@@ -51,10 +51,29 @@ The following Visual Studio Code settings are available for the RustyCode extens
 	"rust.formatOnSave": false, // Turn on/off autoformatting file on save (EXPERIMENTAL)
 	"rust.checkOnSave": false, // Turn on/off `cargo check` project on save (EXPERIMENTAL)
 	"rust.checkWith": "build", // Specifies the linter to use. (EXPERIMENTAL)
-	"rust.useJsonErrors": false, // Enable the use of JSON errors (requires Rust 1.7+). Note: This is an unstable feature of Rust and is still in the process of being stablised
-	"rust.useNewErrorFormat": false, // "Use the new Rust error format (RUST_NEW_ERROR_FORMAT=true). Note: This flag is mutually exclusive with `useJsonErrors`.
+	"rust.errorMode": "plain-text-new", // Error mode, see below.
 }
 ```
+
+### Error mode
+
+`rust.errorMode` configuration option specifies how to process error output of `cargo` commands.
+
+- `json-cargo`
+
+  Cargo is invoked with `--message-format=json` argument. This argument is supported since __rust nightly >= 2016-10-10__. This is the best method, since it does not require full recompilation of the project if `cargo build` is called outside of VS Code.
+
+- `json-rustc`
+
+  Cargo is invoked with `RUSTFLAGS=--error-format=json` environment variable. Supported since __rust 1.12.0__ and __rust nightly > 2016-08-08__. Will require full recompilation of the project if `cargo build` will be called in plain-text error format mode afterwards (e.g. in terminal).
+
+- `plain-text-new`
+
+  Plain-text error message output format. Used since __rust 1.12.0__.
+
+- `plain-text-old`
+
+  Pre __1.12.0__ error message output format.
 
 ## Building and Debugging the Extension
 
