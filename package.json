@@ -24,7 +24,8 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onLanguage:rust"
+    "onLanguage:rust",
+    "onCommand:rust.cargo.clippy"
   ],
   "main": "./out/src/extension",
   "contributes": {
