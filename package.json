@@ -24,7 +24,8 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onLanguage:rust"
+    "onLanguage:rust",
+    "onCommand:rust.cargo.output.toggle"
   ],
   "main": "./out/src/extension",
   "contributes": {
